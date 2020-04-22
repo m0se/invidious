@@ -41,6 +41,32 @@
                     </form>
                 </div>
                 <div class="pure-u-1 pure-u-md-8-24 user-field">
+
+
+                  <% if env.get("preferences").as(Preferences).tags_menu != [""] %>
+                  <div class="pure-menu pure-menu-horizontal">
+                    <ul class="pure-menu-list">
+                        <li class="pure-menu-item pure-menu-has-children pure-menu-allow-hover">
+                            <i class="icon ion-md-pricetag"></i>
+                            <ul class="pure-menu-children">
+                              <% env.get("preferences").as(Preferences).tags_menu.each do |menu_entry| %>
+                                <li class="pure-menu-item" style="padding: 5px;"><a href="/feed/subscriptions?tags=<%-= menu_entry.split(":")[1] -%>" class="pure-menu-link"><%-= menu_entry.split(":")[0] %></a></li>
+                              <% end %>
+                                <% # TODO: get a list of all existing tags for the user and populate this submenu %>
+                                <!--li class="pure-menu-item pure-menu-has-children pure-menu-allow-hover">
+                                   <a href="#" id="menuLink1" class="pure-menu-link">All Tags</a>
+                                  <ul class="pure-menu-children pure-menu-vertical" style="max-height: 140px;overflow-y: scroll;">
+                                    <li class="pure-menu-item"><a href="#" class="pure-menu-link">Tag1</a></li>
+
+                                  </ul>
+                                </li-->
+                            </ul>
+                        </li>
+                    </ul>
+                </div>
+                <% end %>
+
+
                     <% if env.get? "user" %>
                         <div class="pure-u-1-4">
                             <a id="toggle_theme" href="/toggle_theme?referer=<%= env.get?("current_page") %>" class="pure-menu-heading">

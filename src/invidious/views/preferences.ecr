@@ -202,6 +202,12 @@
                         <a href="#" data-onclick="notification_requestPermission"><%= translate(locale, "Enable web notifications") %></a>
                     </div>
                 <% end %>
+
+                <div class="pure-control-group">
+                    <label for="notifications_only"><%= translate(locale, "Tag based navigation (one per line, disabled if empty): ") %></label>
+                    <textarea name="tags_menu" id="tags_menu" style="min-width: 350px;" placeholder="Tag Menu 1:tag1+tag2+!tag3"><% preferences.tags_menu.each do |tags_menu_line| %><%= tags_menu_line %><% end %></textarea>
+                </div>
+
             <% end %>
 
             <% if env.get?("user") && config.admins.includes? env.get?("user").as(User).email %>

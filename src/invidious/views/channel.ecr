@@ -31,11 +31,15 @@
     <p><span style="white-space:pre-wrap"><%= XML.parse_html(channel.description_html).xpath_node(%q(.//pre)).try &.content %></span></p>
 </div>
 
-<div class="h-box">
+<div class="pure-g h-box">
+  <div class="pure-u-1-3">
     <% ucid = channel.ucid %>
     <% author = channel.author %>
     <% sub_count_text = number_to_short_text(channel.sub_count) %>
     <%= rendered "components/subscribe_widget" %>
+  </div>
+  <%= rendered "components/tags_widget" %>
+
 </div>
 
 <div class="pure-g h-box">

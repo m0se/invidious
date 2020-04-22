@@ -137,6 +137,46 @@ img.thumbnail {
   top: -0.7em;
 }
 
+.tag {
+  background-color: #777777;
+  color: #ffffff;
+  display: inline-block;
+  padding: 0px 8px 0px 8px;
+  border-radius: 9px;
+  border-color: #aaaaaa;
+  border-style: solid;
+  margin: 2px;
+}
+.tag_del{
+  font-size: .75em;
+  background: inherit;
+  border: 0;
+  cursor: pointer;
+  padding: 0;
+}
+.tag_add{
+  border-bottom: 1px solid #ccc;
+  background-color: inherit;
+  border-top: 0;
+  border-left: 0;
+  border-right: 0;
+  color: inherit;
+}
+
+.pure-menu-link:hover {
+  background-color: inherit;
+}
+.pure-menu-children {
+  background-color: inherit;
+  color: inherit;
+  border: 1px solid;
+  border-radius: 3px;
+}
+.pure-menu-item li {
+  background-color: inherit;
+  padding: .5em 1em;
+}
+
 /*
  * Navbar
  */

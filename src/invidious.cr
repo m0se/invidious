@@ -2057,6 +2057,11 @@ post "/preferences" do |env|
   notifications_only ||= "off"
   notifications_only = notifications_only == "on"
 
+  tags_menu_text = env.params.body["tags_menu"]?.try &.as(String)
+  tags_menu_text ||=""
+  tags_menu = tags_menu_text.split("\n")
+
+
   # Convert to JSON and back again to take advantage of converters used for compatability
   preferences = Preferences.from_json({
     annotations:            annotations,
@@ -2084,6 +2089,7 @@ post "/preferences" do |env|
     unseen_only:            unseen_only,
     video_loop:             video_loop,
     volume:                 volume,
+    tags_menu:              tags_menu,
   }.to_json).to_json
 
   if user = env.get? "user"
@@ -2397,12 +2403,18 @@ post "/subscription_ajax" do |env|
     action = "action_create_subscription_to_channel"
   elsif env.params.query["action_remove_subscriptions"]?.try &.to_i?.try &.== 1
     action = "action_remove_subscriptions"
+  elsif env.params.query["action_add_subtag"]?.try &.to_i?.try &.== 1
+    action = "action_add_subtag"
+  elsif env.params.query["action_remove_subtag"]?.try &.to_i?.try &.== 1
+    action = "action_remove_subtag"
   else
     next env.redirect referer
   end
 
   channel_id = env.params.query["c"]?
   channel_id ||= ""
+  tag = env.params.body["t"]?
+  tag ||= ""
 
   if !user.password
     # Sync subscriptions with YouTube
@@ -2418,6 +2430,18 @@ post "/subscription_ajax" do |env|
     end
   when "action_remove_subscriptions"
     PG_DB.exec("UPDATE users SET feed_needs_update = true, subscriptions = array_remove(subscriptions, $1) WHERE email = $2", channel_id, email)
+  when "action_add_subtag"
+    # Insert or Update? 
+    if !get_channel_tags(channel_id,email,PG_DB)
+      PG_DB.exec("INSERT INTO channel_tags(ucid, email, tags) VALUES ($1, $2, ARRAY[$3])", channel_id, email, tag.split(" ")[0])
+    else
+      PG_DB.exec("UPDATE channel_tags SET tags = array_append(tags, $1) WHERE email = $2 AND ucid = $3", tag.split(" ")[0], email, channel_id)
+    end
+  when "action_remove_subtag"
+    if get_channel_tags(channel_id,email,PG_DB)
+      PG_DB.exec("UPDATE channel_tags SET tags = array_remove(tags, $1) WHERE email = $2 AND ucid = $3", tag.split(" ")[0], email, channel_id)
+    end
+
   else
     error_message = {"error" => "Unsupported action #{action}"}.to_json
     env.response.status_code = 400
@@ -3090,8 +3114,10 @@ get "/feed/subscriptions" do |env|
 
   page = env.params.query["page"]?.try &.to_i?
   page ||= 1
+  tag_filter = env.params.query["tags"]?
+  tag_filter ||= ""
 
-  videos, notifications = get_subscription_feed(PG_DB, user, max_results, page)
+  videos, notifications = get_subscription_feed(PG_DB, user, max_results, page, tag_filter)
 
   # "updated" here is used for delivering new notifications, so if
   # we know a user has looked at their feed e.g. in the past 10 minutes,
@@ -3547,14 +3573,20 @@ end
 get "/channel/:ucid" do |env|
   locale = LOCALES[env.get("preferences").as(Preferences).locale]?
 
+  ucid = env.params.url["ucid"]
   user = env.get? "user"
   if user
     user = user.as(User)
     subscriptions = user.subscriptions
+    tags = get_channel_tags(ucid,user.email,PG_DB)
+    if tags
+      tags = tags.as_a
+    end
   end
   subscriptions ||= [] of String
+  tags ||= [] of String
 
-  ucid = env.params.url["ucid"]
+
 
   page = env.params.query["page"]?.try &.to_i?
   page ||= 1

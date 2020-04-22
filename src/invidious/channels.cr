@@ -1001,3 +1001,10 @@ def get_latest_videos(ucid)
 
   return videos
 end
+
+def get_channel_tags(ucid,email,db)
+  ctags = db.query_one?("SELECT array_to_json(tags) AS tag_list FROM public.channel_tags \
+    WHERE email = $1 AND ucid = $2",email ,ucid, as: JSON::Any)
+
+  return ctags
+end

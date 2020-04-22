@@ -93,6 +93,7 @@ struct Preferences
     unseen_only:            {type: Bool, default: CONFIG.default_user_preferences.unseen_only},
     video_loop:             {type: Bool, default: CONFIG.default_user_preferences.video_loop},
     volume:                 {type: Int32, default: CONFIG.default_user_preferences.volume},
+    tags_menu:              {type: Array(String), default: CONFIG.default_user_preferences.tags_menu},
   })
 end
 
@@ -323,7 +324,7 @@ end
 #   end
 # end
 
-def get_subscription_feed(db, user, max_results = 40, page = 1)
+def get_subscription_feed(db, user, max_results = 40, page = 1, tag_filter = "")
   limit = max_results.clamp(0, MAX_ITEMS_PER_PAGE)
   offset = (page - 1) * limit
 
@@ -353,6 +354,10 @@ def get_subscription_feed(db, user, max_results = 40, page = 1)
     else nil # Ignore
     end
   else
+    # prepare tag clause
+    tag_clause=build_tag_filter_clause(view_name,user.email,tag_filter)
+
+
     if user.preferences.latest_only
       if user.preferences.unseen_only
         # Show latest video from a channel that a user hasn't watched
@@ -363,11 +368,11 @@ def get_subscription_feed(db, user, max_results = 40, page = 1)
         else
           values = "VALUES #{user.watched.map { |id| %(('#{id}')) }.join(",")}"
         end
-        videos = PG_DB.query_all("SELECT DISTINCT ON (ucid) * FROM #{view_name} WHERE NOT id = ANY (#{values}) ORDER BY ucid, published DESC", as: ChannelVideo)
+        videos = PG_DB.query_all("SELECT DISTINCT ON (ucid) * FROM #{view_name} WHERE NOT id = ANY (#{values}) #{tag_clause} ORDER BY ucid, published DESC", as: ChannelVideo)
       else
         # Show latest video from each channel
 
-        videos = PG_DB.query_all("SELECT DISTINCT ON (ucid) * FROM #{view_name} ORDER BY ucid, published DESC", as: ChannelVideo)
+        videos = PG_DB.query_all("SELECT DISTINCT ON (ucid) * FROM #{view_name} WHERE 1=1 #{tag_clause} ORDER BY ucid, published DESC", as: ChannelVideo)
       end
 
       videos.sort_by! { |video| video.published }.reverse!
@@ -380,11 +385,11 @@ def get_subscription_feed(db, user, max_results = 40, page = 1)
         else
           values = "VALUES #{user.watched.map { |id| %(('#{id}')) }.join(",")}"
         end
-        videos = PG_DB.query_all("SELECT * FROM #{view_name} WHERE NOT id = ANY (#{values}) ORDER BY published DESC LIMIT $1 OFFSET $2", limit, offset, as: ChannelVideo)
+        videos = PG_DB.query_all("SELECT * FROM #{view_name} WHERE NOT id = ANY (#{values}) #{tag_clause} ORDER BY published DESC LIMIT $1 OFFSET $2", limit, offset, as: ChannelVideo)
       else
         # Sort subscriptions as normal
 
-        videos = PG_DB.query_all("SELECT * FROM #{view_name} ORDER BY published DESC LIMIT $1 OFFSET $2", limit, offset, as: ChannelVideo)
+        videos = PG_DB.query_all("SELECT * FROM #{view_name} WHERE 1=1 #{tag_clause} ORDER BY published DESC LIMIT $1 OFFSET $2", limit, offset, as: ChannelVideo)
       end
     end
 
@@ -409,4 +414,26 @@ def get_subscription_feed(db, user, max_results = 40, page = 1)
   end
 
   return videos, notifications
+end
+
+def build_tag_filter_clause(view_name,email,tag_filter)
+  tag_clause=""
+  if tag_filter!=""
+    tags_include=""
+    tags_exclude=""
+    tgs=tag_filter.split(" ")
+    tgs.each do |t|
+      if t[0] == '!'
+        puts t
+        tags_exclude = tags_exclude + t.lstrip('!') + ","
+      else
+        tags_include = tags_include + t + ","
+      end
+    end
+    tag_clause = "AND #{view_name}.ucid = \
+        ANY (SELECT ucid FROM channel_tags WHERE email = '#{email}' AND tags && '{#{tags_include.rstrip(',')}}'::text[] \
+        AND NOT  tags && '{#{tags_exclude.rstrip(',')}}'::text[])"
+
+  end
+  return tag_clause
 end

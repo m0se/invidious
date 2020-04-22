@@ -150,6 +150,7 @@ struct ConfigPreferences
     unseen_only:            {type: Bool, default: false},
     video_loop:             {type: Bool, default: false},
     volume:                 {type: Int32, default: 100},
+    tags_menu:              {type: Array(String), default: [] of String},
   })
 end
 
